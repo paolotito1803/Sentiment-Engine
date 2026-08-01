@@ -45,7 +45,7 @@ class TrafficGenerator(threading.Thread):
         print(f"[{self.name}] Started. Traffic generation ...")
 
         try:
-            while not stop_event.is_set():
+            while not self.stop_event.is_set():
                 try:
                     possible_attack = random.random() < 0.05
 
@@ -70,27 +70,27 @@ class TrafficGenerator(threading.Thread):
         print(f"[{self.name}] stop_event received. Stopped.")
 
 
-if __name__ == "__main__":
-    print("--- START ---")
-
-    shared_queue = mp.Queue(maxsize=100)
-    stop_event = threading.Event()
-
-    gen = TrafficGenerator(1, shared_queue, stop_event)
-    gen.start()
-
-    print("--- WAITING LOG ---")
-
-    try:
-        for i in range(10):
-            log = shared_queue.get(timeout = 3)
-            print(f"[{i + 1}/10] Extracted Log: {log}")
-
-    except queue.Empty:
-        print("❌ TIMOUT ERROR: The queue is empty! The generator isn't generating logs.")
-
-    finally:
-        print("--- STARTING CLOSING PROCEDURE ---")
-        stop_event.set()
-        gen.join()
-        print("--- PERFECT ENDING ---")
+# if __name__ == "__main__":
+#     print("--- START ---")
+#
+#     shared_queue = mp.Queue(maxsize=100)
+#     stop_event = threading.Event()
+#
+#     gen = TrafficGenerator(1, shared_queue, stop_event)
+#     gen.start()
+#
+#     print("--- WAITING LOG ---")
+#
+#     try:
+#         for i in range(10):
+#             log = shared_queue.get(timeout = 3)
+#             print(f"[{i + 1}/10] Extracted Log: {log}")
+#
+#     except queue.Empty:
+#         print("❌ TIMOUT ERROR: The queue is empty! The generator isn't generating logs.")
+#
+#     finally:
+#         print("--- STARTING CLOSING PROCEDURE ---")
+#         stop_event.set()
+#         gen.join()
+#         print("--- PERFECT ENDING ---")
