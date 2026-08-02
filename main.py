@@ -1,58 +1,61 @@
 import multiprocessing as mp
 import threading
 import queue
-import time  # Aggiungi questo
+import time
 
 from TrafficGenerator import TrafficGenerator
 from LogParser import LogParser
 from SecurityAnalyzer import SecurityAnalyzer
+from AlertDispatcher import AlertDispatcher
 
 POISON_PILL = "KILL_SIGNAL"
 
 if __name__ == "__main__":
     raw_log_queue = mp.Queue(maxsize=1000)
     parsed_log_queue = mp.Queue(maxsize=1000)
+
+    alert_queue = queue.Queue(maxsize=100)
+
     stop_event = threading.Event()
 
-    # 1. Avvio Generatore
     gen = TrafficGenerator(1, raw_log_queue, stop_event)
     gen.start()
 
-    # 2. Avvio dei 2 Parser (Processi)
     parsers = []
     for i in range(2):
         p = LogParser(i + 1, raw_log_queue, parsed_log_queue)
         p.start()
         parsers.append(p)
 
-    # 3. AVVIO DEL SECURITY ANALYZER (Thread)
-    analyzer = SecurityAnalyzer(parsed_log_queue, stop_event)
+    # Sending the alert_queue to the analyzer
+    analyzer = SecurityAnalyzer(parsed_log_queue, alert_queue, stop_event)
     analyzer.start()
 
+    # Starting dispatcher
+    dispatcher = AlertDispatcher(alert_queue, stop_event)
+    dispatcher.start()
+
     try:
-        # Ora il main thread non fa nulla, si mette in pausa e lascia lavorare
-        # la pipeline (Generatore -> Parser -> Analyzer) per 10 secondi.
-        print("--- SISTEMA ONLINE: In ascolto per 10 secondi ---")
+        print("--- ONLINE: On hear for 10 seconds ---")
         time.sleep(10)
 
     except KeyboardInterrupt:
-        print("\nInterruzione manuale rilevata.")
+        pass
 
     finally:
         print("\n--- SHUTDOWN START ---")
 
-        # 1. Fermiamo Thread (Generatore e Analyzer ascoltano lo stesso stop_event!)
         stop_event.set()
         gen.join()
-        analyzer.join()  # <-- Aggiunto questo
-        print("[Orchestratore] Generatore e Analyzer fermati.")
+        analyzer.join()
+        dispatcher.join()  # <--- STOPPING THE DISPATCHER
+        print("[Otchestrator] Generator, Analyzer and Dispatcher stopped.")
 
-        # 2. Fermiamo i Processi (Parser) con le pillole
         for _ in range(len(parsers)):
             raw_log_queue.put(POISON_PILL)
 
         for p in parsers:
             p.join()
-        print("[Orchestratore] Tutti i Parser fermati.")
+        print("[Orchestrator] All Parsers stopped.")
 
         print("--- CLOSING SYSTEM ---")

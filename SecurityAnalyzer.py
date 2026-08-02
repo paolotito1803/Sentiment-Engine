@@ -6,9 +6,10 @@ from collections import defaultdict
 from datetime import datetime
 
 class SecurityAnalyzer(threading.Thread):
-    def __init__(self, parsed_queue, stop_event):
+    def __init__(self, parsed_queue, alert_queue, stop_event):
         super().__init__(name = "Security-Analyzer")
         self.parsed_queue = parsed_queue
+        self.alert_queue = alert_queue
         self.stop_event = stop_event
 
         self.ip_counter = defaultdict(list)
@@ -41,6 +42,15 @@ class SecurityAnalyzer(threading.Thread):
 
                 request_counter = len(self.ip_counter[ip])
                 if request_counter >= self.THRESHOLD:
+                    alert_message = {
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "attacker_ip": ip,
+                        "intensity": f"{request_counter} req/sec",
+                        "severity": "CRITICAL",
+                        "description": "Possible DDOS attack"
+                    }
+
+                    self.alert_queue.put(alert_message)
                     print(f"[{self.name}] 🚨🚨 DDoS! 🚨🚨")
                     print(f"[{self.name}] IP BANNED: {ip} ({request_counter} req/sec)")
                     self.blocked_ips.add(ip)
