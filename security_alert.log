@@ -1,0 +1,2 @@
+{"timestamp": "2026-08-02 10:04:37", "attacker-ip": "10.0.0.99", "intensity": "20 req/sec", "severity": "CRITICAL", "description": "Possible DDOS attack"}
+{"timestamp": "2026-08-02 10:07:55", "attacker_ip": "10.0.0.99", "intensity": "20 req/sec", "severity": "CRITICAL", "description": "Possible DDOS attack"}
