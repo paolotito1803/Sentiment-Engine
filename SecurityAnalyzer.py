@@ -12,7 +12,7 @@ class SecurityAnalyzer(threading.Thread):
         self.alert_queue = alert_queue
         self.stop_event = stop_event
 
-        self.ip_counter = defaultdict(list)
+        self.ip_counter = {}
         self.blocked_ips = set()
 
         # Security Rules
@@ -26,6 +26,8 @@ class SecurityAnalyzer(threading.Thread):
             try:
                 log_data = self.parsed_queue.get(timeout = 2)
                 ip = log_data["ip"]
+                status = log_data["status"]
+                endpoint = log_data["endpoint"]
 
                 # if the ip is already banned, we don't care about it
                 if ip in self.blocked_ips:
@@ -36,6 +38,30 @@ class SecurityAnalyzer(threading.Thread):
                 datetime_timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
                 ip_time = datetime_timestamp.timestamp()
                 self.ip_counter[ip].append(ip_time)
+
+                if ip not in self.ip_counter:
+                    self.ip_counter[ip] = {"score": "0.0", "last_seen": ip_time}
+                else:
+                    time_passed = ip_time - self.ip_counter[ip]["last_seen"]
+                    score_losted = time_passed * self.THRESHOLD
+                    score = self.ip_counter[ip]["score"]
+                    self.ip_counter[ip]["score"] = max(0.0, score - score_losted)
+
+                score_to_add = 1.0
+                reason = "Anoulus volume (possible DDoS)"
+
+                if status == 401 and "/api/login" in endpoint:
+                    score_to_add = 50.0
+                    reason = "Possible Brute Force"
+
+                if "" in endpoint or "OR" in endpoint:
+                    score_to_add = 20.0
+                    reason = "Possible SQLi"
+
+                self.ip_counter[ip]["score"] += score_to_add
+                self.ip_counter[ip]["last_seen"] = ip_time
+
+                final_score = self.ip_counter[ip]["score"]
 
                 # contains only times in the last 3 seconds
                 self.ip_counter[ip] = [t for t in self.ip_counter[ip] if ip_time - t <= self.TIME_WIDNDOW]
